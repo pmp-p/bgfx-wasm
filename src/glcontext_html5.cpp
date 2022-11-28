@@ -2,7 +2,7 @@
  * Copyright 2011-2022 Branimir Karadzic. All rights reserved.
  * License: https://github.com/bkaradzic/bgfx/blob/master/LICENSE
  */
-
+#include <stdio.h>
 #include "bgfx_p.h"
 
 #if BGFX_CONFIG_RENDERER_OPENGLES
@@ -63,7 +63,7 @@ namespace bgfx { namespace gl
 		char* m_canvas;
 	};
 
-	void GlContext::create(uint32_t _width, uint32_t _height, uint32_t /*_flags*/)
+	void GlContext::create(uint32_t _width, uint32_t _height)
 	{
 		// assert?
 		if (m_primary != NULL)
@@ -124,6 +124,19 @@ namespace bgfx { namespace gl
 
 	SwapChainGL* GlContext::createSwapChain(void* _nwh)
 	{
+		const char* canvas = (const char*) _nwh;
+        EMSCRIPTEN_WEBGL_CONTEXT_HANDLE context;
+        SwapChainGL* swapChain;
+
+        if ( (context = emscripten_webgl_get_current_context()) ) {
+
+            emscripten_webgl_make_context_current(context);
+			swapChain = BX_NEW(g_allocator, SwapChainGL)(context, canvas);
+			import(2);
+            printf("%s:%i re-using WebGL context %i\n",__FILE__,__LINE__,context);
+			return swapChain;
+        }
+
 		emscripten_webgl_init_context_attributes(&s_attrs);
 
 		// Work around bug https://bugs.chromium.org/p/chromium/issues/detail?id=1045643 in Chrome
@@ -136,31 +149,28 @@ namespace bgfx { namespace gl
 		s_attrs.antialias                 = false;
 
 		s_attrs.minorVersion = 0;
-		const char* canvas = (const char*) _nwh;
-		int32_t error = 0;
+		int error = 0;
 
 		for (int version = 2; version >= 1; --version)
 		{
 			s_attrs.majorVersion = version;
-			EMSCRIPTEN_WEBGL_CONTEXT_HANDLE context = emscripten_webgl_create_context(canvas, &s_attrs);
+			//EMSCRIPTEN_WEBGL_CONTEXT_HANDLE
+            context = emscripten_webgl_create_context(canvas, &s_attrs);
 
 			if (context > 0)
 			{
 				EMSCRIPTEN_CHECK(emscripten_webgl_make_context_current(context) );
 
-				SwapChainGL* swapChain = BX_NEW(g_allocator, SwapChainGL)(context, canvas);
+				swapChain = BX_NEW(g_allocator, SwapChainGL)(context, canvas);
 
 				import(version);
 
 				return swapChain;
 			}
-
-			error = (int32_t)context;
+			error = (int) context;
 		}
 
 		BX_TRACE("Failed to create WebGL context. (Canvas handle: '%s', last attempt error %d)", canvas, error);
-		BX_UNUSED(error);
-
 		return NULL;
 	}
 
