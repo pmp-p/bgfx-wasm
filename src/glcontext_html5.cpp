@@ -155,7 +155,6 @@ namespace bgfx { namespace gl
 		for (int version = 2; version >= 1; --version)
 		{
 			s_attrs.majorVersion = version;
-			//EMSCRIPTEN_WEBGL_CONTEXT_HANDLE
             context = emscripten_webgl_create_context(canvas, &s_attrs);
 
 			if (context > 0)
@@ -168,12 +167,12 @@ namespace bgfx { namespace gl
 
 				return swapChain;
 			}
+
 			error = (int32_t) context;
 		}
 
 		BX_TRACE("Failed to create WebGL context. (Canvas handle: '%s', last attempt error %d)", canvas, error);
 		BX_UNUSED(error);
-
 
 		return NULL;
 	}
